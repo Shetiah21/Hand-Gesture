@@ -20,6 +20,13 @@ class HandTracker:
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.hands.process(rgb_frame)
         return results
+    def get_index_finger_y(self, hand_landmarks, frame_shape):
+        """Get the y-coordinate of the index finger tip"""
+        index_tip = hand_landmarks.landmark[8]
+        h, w, c = frame_shape
+        index_y = int(index_tip.y * h)
+        return index_y
+
     
     def draw_hand_landmarks(self, frame, hand_landmarks):
         "Draw hand landmarks and connections on the frame"
@@ -61,3 +68,6 @@ class HandTracker:
         # Display distance
         cv2.putText(frame, f"Distance: {int(distance)}", (50, 120), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        
+        
+       
