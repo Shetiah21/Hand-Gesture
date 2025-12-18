@@ -10,67 +10,79 @@ pyautogui.FAILSAFE = False
 
 
 def main():
-    
+
     camera = CameraManager()
     hand_tracker = HandTracker()
     volume_controller = VolumeController()
 
     try:
-        
         camera.initialize_camera()
-        
         print("✓ Show your hand to the camera...")
 
         while True:
-            
+
             ret, frame = camera.read_frame()
             if not ret:
                 break
 
             frame_h, frame_w, _ = frame.shape
-            center_y = frame_h // 2        # screen center
-            DEAD_ZONE = 40                 # no scroll zone
-            SCROLL_SPEED = 30              # smooth continuous speed
+            center_y = frame_h // 2
+            DEAD_ZONE = 40
+            SCROLL_SPEED = 30
 
             results = hand_tracker.detect_hands(frame)
 
             if results.multi_hand_landmarks:
-                
+
                 for hand_landmarks in results.multi_hand_landmarks:
 
-                    # Draw hand landmarks
                     hand_tracker.draw_hand_landmarks(frame, hand_landmarks)
 
-                    # Finger positions
                     thumb_pos, index_pos = hand_tracker.get_finger_positions(
                         hand_landmarks, frame.shape
                     )
 
-                    # ---------- VOLUME CONTROL ----------
-                    distance = hand_tracker.calculate_distance(thumb_pos, index_pos)
-                    volume_percent = volume_controller.set_volume(distance)
-                    # -----------------------------------
+                    # --------- VOLUME CONTROL ---------
+                    hand_closed = hand_tracker.is_hand_closed(hand_landmarks)
 
-                    # ---------- CONTINUOUS SCROLL ----------
-                    index_y = hand_tracker.get_index_finger_y(
-                        hand_landmarks, frame.shape
-                    )
+                    if hand_closed:
+                        volume_controller.mute_volume()
+                        volume_percent = 0
+                        distance = 0
 
-                    # Finger above center → scroll up
-                    if index_y < center_y - DEAD_ZONE:
-                        pyautogui.scroll(SCROLL_SPEED)
+                        cv2.putText(
+                            frame,
+                            "MUTED",
+                            (50, 180),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.9,
+                            (0, 0, 255),
+                            3
+                        )
+                    else:
+                        volume_controller.unmute_volume()
+                        distance = hand_tracker.calculate_distance(
+                            thumb_pos, index_pos
+                        )
+                        volume_percent = volume_controller.set_volume(distance)
+                    # ---------------------------------
 
-                    # Finger below center → scroll down
-                    elif index_y > center_y + DEAD_ZONE:
-                        pyautogui.scroll(-SCROLL_SPEED)
-                    # ---------------------------------------
+                    # --------- CONTINUOUS SCROLL ---------
+                    if not hand_closed:
+                        index_y = hand_tracker.get_index_finger_y(
+                            hand_landmarks, frame.shape
+                        )
 
-                    # Visualization
+                        if index_y < center_y - DEAD_ZONE:
+                            pyautogui.scroll(SCROLL_SPEED)
+                        elif index_y > center_y + DEAD_ZONE:
+                            pyautogui.scroll(-SCROLL_SPEED)
+                    # ------------------------------------
+
                     hand_tracker.draw_finger_visualization(
                         frame, thumb_pos, index_pos, distance
                     )
 
-                    # UI info
                     cv2.putText(
                         frame,
                         f"Volume: {volume_percent}%",
@@ -81,7 +93,6 @@ def main():
                         2
                     )
 
-            # UI text
             cv2.putText(
                 frame,
                 "Continuous Hand Scroll + Volume Control",
@@ -94,7 +105,7 @@ def main():
 
             cv2.putText(
                 frame,
-                "Finger up/down = scroll | Pinch = volume",
+                "Finger up/down = scroll | Pinch = volume | Fist = mute",
                 (50, 85),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
@@ -111,7 +122,6 @@ def main():
         print("Error:", e)
 
     finally:
-        
         camera.release_camera()
         print("✓ Application closed successfully!")
 

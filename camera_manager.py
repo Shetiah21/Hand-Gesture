@@ -34,3 +34,5 @@ class CameraManager:
     def check_exit_key(self):
         "Check if 'q' key is pressed to exit"
         return cv2.waitKey(1) & 0xFF == ord('q')
+    
+        
